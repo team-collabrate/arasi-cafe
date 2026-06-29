@@ -4,7 +4,7 @@ import { LayoutDashboard, Users, FileText, Package, Truck } from "lucide-react";
 import { Toaster } from "sonner";
 
 // Pages
-import SplashPage from "../pages/SplashPage";
+
 import DashboardPage from "../pages/DashboardPage";
 import CustomerListPage from "../pages/CustomerListPage";
 import CustomerDetailPage from "../pages/CustomerDetailPage";
@@ -110,7 +110,7 @@ function PageTransition({ children }: { children: React.ReactNode }) {
 // ── App shell ────────────────────────────────────────────────
 function AppShell() {
   const location = useLocation();
-  const isSplash = location.pathname === "/" || location.pathname === "/splash";
+  const isSplash = false;
 
   return (
     <div
@@ -133,8 +133,7 @@ function AppShell() {
         >
           <PageTransition>
             <Routes location={location}>
-              <Route path="/" element={<Navigate to="/splash" replace />} />
-              <Route path="/splash" element={<SplashPage />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
               <Route path="/dashboard" element={<DashboardPage />} />
 
               <Route path="/customers" element={<CustomerListPage />} />
