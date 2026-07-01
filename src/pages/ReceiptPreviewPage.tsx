@@ -16,12 +16,15 @@ function formatDate(dateString: string): string {
     .replace(/\//g, "-");
 }
 
-function generateInvoiceNumber(date: string, index: number): string {
+function generateInvoiceNumber(date: string, index: number, vendorName?: string): string {
   const d = new Date(date);
   const y = String(d.getFullYear()).slice(-2);
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
-  return `HO ${y}${m}${day}${String(index).padStart(3, "0")}`;
+  const prefix = vendorName
+    ? vendorName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 4)
+    : "XX";
+  return `${prefix}/${y}${m}${day}/${String(index).padStart(3, "0")}`;
 }
 
 export default function ReceiptPreviewPage() {
@@ -67,8 +70,13 @@ export default function ReceiptPreviewPage() {
         jsPDF: { unit: "mm", format: [300, pageHeight], orientation: "portrait" },
       })
       .from(el)
-      .save();
-  }, [tx]);
+      .save()
+      .then(() => {
+        if (vendor?.phone) {
+          window.open(`https://wa.me/91${vendor.phone}`, "_blank");
+        }
+      });
+  }, [tx, vendor]);
 
   const handleShare = useCallback(async () => {
     if (navigator.share) {
@@ -96,9 +104,7 @@ export default function ReceiptPreviewPage() {
     );
   }
 
-  const invoiceNo = generateInvoiceNumber(tx.date, tx._id.length);
-  const now = new Date(tx.date);
-  const timeStr = now.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true });
+  const invoiceNo = generateInvoiceNumber(tx.date, tx._id.length, tx.vendorName);
 
   return (
     <div>
@@ -135,7 +141,7 @@ export default function ReceiptPreviewPage() {
               <img src="/logo.png" alt="Arasi Logo" className="logo" />
               <div className="brand-text">
                 <h1>அரசி</h1>
-                <h2>Wholesale & Retail</h2>
+                <h2>Milk Agency</h2>
                 <p>New Bus Stand, Opp. Aruppukottai</p>
                 <p>Mobile : +91 95245 58005</p>
               </div>
@@ -150,7 +156,6 @@ export default function ReceiptPreviewPage() {
                 <tbody>
                   <tr><td><b>Bill No :</b></td><td>{invoiceNo}</td></tr>
                   <tr><td><b>Date :</b></td><td>{formatDate(tx.date)}</td></tr>
-                  <tr><td><b>Time :</b></td><td>{timeStr}</td></tr>
                 </tbody>
               </table>
 
@@ -218,8 +223,7 @@ export default function ReceiptPreviewPage() {
           </div>
 
           <div className="footer">
-            <div><div className="line"></div>Customer Signature</div>
-            <div><div className="line"></div>For அரசி Wholesale & Retail</div>
+            <div><div className="line"></div>For அரசி Milk Agency</div>
           </div>
 
           <div className="thanks">Thank you for your business!</div>
