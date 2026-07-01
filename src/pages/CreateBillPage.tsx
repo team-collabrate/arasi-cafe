@@ -122,7 +122,7 @@ export default function CreateBillPage() {
 
     if (withWhatsApp && selectedVendor) {
       const itemLines = items.map((i) => `  • ${i.name} x${i.qty} ${i.uom || ""} @ ₹${i.price} = ₹${(i.qty * i.price).toFixed(0)}`).join("\n");
-      const msg = encodeURIComponent(`*Arasi Cafe - Bill*\n\nCustomer: ${selectedVendor.name}\nDate: ${new Date().toLocaleDateString("en-IN")}\n\n${itemLines}\n\nSubtotal: ₹${subtotal.toFixed(0)}\nTax: ₹${totalTax.toFixed(0)}\n*Total: ₹${grandTotal.toFixed(0)}*\n\nThank you! 🙏`);
+      const msg = encodeURIComponent(`*Arasi - Bill*\n\nCustomer: ${selectedVendor.name}\nDate: ${new Date().toLocaleDateString("en-IN")}\n\n${itemLines}\n\nSubtotal: ₹${subtotal.toFixed(0)}\nTax: ₹${totalTax.toFixed(0)}\n*Total: ₹${grandTotal.toFixed(0)}*\n\nThank you! 🙏`);
       window.open(`https://wa.me/91${selectedVendor.phone}?text=${msg}`, "_blank");
     }
     navigate("/bills");

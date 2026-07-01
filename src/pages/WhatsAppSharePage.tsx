@@ -18,14 +18,14 @@ export default function WhatsAppSharePage() {
   const message = useMemo(() => {
     if (!tx || !vendor) return "";
     if (tx.type === "payment") {
-      return `*🏪 Arasi Cafe — Payment Receipt*\n\nDear ${vendor.name},\n\nWe acknowledge receipt of payment:\n\n💰 *Amount:* ₹${tx.amount}\n📅 *Date:* ${formatDate(tx.date)}\n💳 *Method:* ${tx.paymentMethod || "Cash"}\n${tx.notes ? `📝 *Note:* ${tx.notes}\n` : ""}\n✅ Payment recorded. Thank you!\n\n_Arasi Cafe · Fresh · Simple · Trusted_ 🙏`;
+      return `*🏪 Arasi — Payment Receipt*\n\nDear ${vendor.name},\n\nWe acknowledge receipt of payment:\n\n💰 *Amount:* ₹${tx.amount}\n📅 *Date:* ${formatDate(tx.date)}\n💳 *Method:* ${tx.paymentMethod || "Cash"}\n${tx.notes ? `📝 *Note:* ${tx.notes}\n` : ""}\n✅ Payment recorded. Thank you!\n\n_Arasi · Fresh · Simple · Trusted_ 🙏`;
     }
 
     const itemLines = (tx.items || []).map((i) => `  🔸 ${i.name} — ${i.qty}${i.uom ? ` ${i.uom}` : ""} × ₹${i.price} = *₹${(i.qty * i.price).toFixed(0)}*`).join("\n");
     const subtotal = (tx.items || []).reduce((s, i) => s + i.qty * i.price, 0);
     const totalTax = (tx.items || []).reduce((s, i) => { const sub = i.qty * i.price; return s + sub * ((i.cgst + i.sgst) / 100); }, 0);
 
-    return `*🏪 Arasi Cafe — Bill*\n\nDear ${vendor.name},\n\nYour bill dated ${formatDate(tx.date)}:\n\n${itemLines}\n\n━━━━━━━━━━━━━━━\n💰 Subtotal: ₹${subtotal.toFixed(0)}${totalTax > 0 ? `\n🧾 Tax (GST): ₹${totalTax.toFixed(0)}` : ""}\n*💵 Total: ₹${tx.amount}*\n━━━━━━━━━━━━━━━\n${tx.notes ? `📝 Note: ${tx.notes}\n\n` : "\n"}_Arasi Cafe · Fresh · Simple · Trusted_ 🙏`;
+    return `*🏪 Arasi — Bill*\n\nDear ${vendor.name},\n\nYour bill dated ${formatDate(tx.date)}:\n\n${itemLines}\n\n━━━━━━━━━━━━━━━\n💰 Subtotal: ₹${subtotal.toFixed(0)}${totalTax > 0 ? `\n🧾 Tax (GST): ₹${totalTax.toFixed(0)}` : ""}\n*💵 Total: ₹${tx.amount}*\n━━━━━━━━━━━━━━━\n${tx.notes ? `📝 Note: ${tx.notes}\n\n` : "\n"}_Arasi · Fresh · Simple · Trusted_ 🙏`;
   }, [tx, vendor]);
 
   if (!tx || !vendor) {

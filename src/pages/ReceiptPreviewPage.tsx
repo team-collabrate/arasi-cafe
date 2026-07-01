@@ -81,7 +81,7 @@ export default function ReceiptPreviewPage() {
 
   const handleShare = useCallback(async () => {
     if (navigator.share) {
-      await navigator.share({ title: "Arasi Cafe - Bill", text: `Bill from Arasi Cafe for ${tx?.vendorName}` });
+      await navigator.share({ title: "Arasi - Bill", text: `Bill from Arasi for ${tx?.vendorName}` });
     } else {
       window.print();
     }
@@ -162,7 +162,7 @@ export default function ReceiptPreviewPage() {
             }}
           >
             <h1 style={{ margin: 0, fontSize: "24px", fontWeight: "bold", letterSpacing: "2px" }}>
-              ARASI CAFE
+              ARASI
             </h1>
             <h2 style={{ margin: "5px 0", fontSize: "22px", fontWeight: "bold" }}>ARUPPUKKOTTAI</h2>
             <p style={{ margin: "3px 0", fontSize: "11px" }}>Dairy &amp; Meat Products</p>
@@ -206,7 +206,7 @@ export default function ReceiptPreviewPage() {
             }}
           >
             <div style={{ width: "50%" }}>
-              <p style={{ margin: 0, fontWeight: "bold", fontSize: "14px" }}>Arasi Cafe</p>
+              <p style={{ margin: 0, fontWeight: "bold", fontSize: "14px" }}>Arasi</p>
               <div style={{ marginTop: "8px", fontSize: "11px" }}>
                 <p style={{ margin: 0 }}>GSTIN : 33HFQPK1834A1ZN</p>
                 <p style={{ margin: "3px 0 0" }}>E-Mail.: kugan2077@gmail.com</p>

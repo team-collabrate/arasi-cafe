@@ -181,7 +181,7 @@ export default function DashboardPage() {
       <div className="px-5 pt-12 pb-6 bg-gradient-to-b from-[#FFF8F4] to-white">
         <motion.div initial={{ y: -10, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.4 }}>
           <p className="text-sm font-semibold text-[#C99A4B] uppercase tracking-wider">{greeting}</p>
-          <h1 className="text-2xl font-bold text-[#1A0A0C] mt-0.5">Arasi Cafe</h1>
+          <h1 className="text-2xl font-bold text-[#1A0A0C] mt-0.5">Arasi</h1>
           <p className="text-sm text-[#6B4C4F] mt-0.5">{today}</p>
         </motion.div>
       </div>

@@ -43,7 +43,7 @@ export default function BillDetailPage() {
   const shareWhatsApp = () => {
     if (!vendor) return;
     const itemLines = (tx.items || []).map((i) => `  • ${i.name} x${i.qty} ${i.uom || ""} = ₹${(i.qty * i.price).toFixed(0)}`).join("\n");
-    const msg = encodeURIComponent(`*Arasi Cafe - Bill*\n\nCustomer: ${vendor.name}\nDate: ${formatDate(tx.date)}\n\n${itemLines}\n\nSubtotal: ₹${subtotal.toFixed(0)}\nTax: ₹${totalTax.toFixed(0)}\n*Total: ₹${tx.amount}*\n\n${tx.notes ? `Note: ${tx.notes}\n\n` : ""}Thank you! 🙏`);
+    const msg = encodeURIComponent(`*Arasi - Bill*\n\nCustomer: ${vendor.name}\nDate: ${formatDate(tx.date)}\n\n${itemLines}\n\nSubtotal: ₹${subtotal.toFixed(0)}\nTax: ₹${totalTax.toFixed(0)}\n*Total: ₹${tx.amount}*\n\n${tx.notes ? `Note: ${tx.notes}\n\n` : ""}Thank you! 🙏`);
     window.open(`https://wa.me/91${vendor?.phone}?text=${msg}`, "_blank");
   };
 

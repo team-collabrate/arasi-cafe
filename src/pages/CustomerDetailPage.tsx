@@ -50,7 +50,7 @@ export default function CustomerDetailPage() {
 
   const shareStatement = () => {
     const msg = encodeURIComponent(
-      `*Arasi Cafe - Customer Statement*\n\nCustomer: ${vendor.name}\nPhone: ${vendor.phone}\n\nTotal Billed: ₹${totalBilled}\nTotal Paid: ₹${totalPaid}\nOutstanding: ₹${vendor.dueAmount}\n\nThank you for your business! 🙏`
+      `*Arasi - Customer Statement*\n\nCustomer: ${vendor.name}\nPhone: ${vendor.phone}\n\nTotal Billed: ₹${totalBilled}\nTotal Paid: ₹${totalPaid}\nOutstanding: ₹${vendor.dueAmount}\n\nThank you for your business! 🙏`
     );
     window.open(`https://wa.me/91${vendor.phone}?text=${msg}`, "_blank");
   };

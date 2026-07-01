@@ -57,7 +57,7 @@ export default function ReceivePaymentPage() {
     });
 
     if (whatsapp && vendor) {
-      const msg = encodeURIComponent(`*Arasi Cafe - Payment Receipt*\n\nCustomer: ${vendor.name}\nAmount Paid: ₹${numAmount}\nMethod: ${method}\nDate: ${new Date().toLocaleDateString("en-IN")}\nBalance: ₹${remaining}\n\nThank you! 🙏`);
+      const msg = encodeURIComponent(`*Arasi - Payment Receipt*\n\nCustomer: ${vendor.name}\nAmount Paid: ₹${numAmount}\nMethod: ${method}\nDate: ${new Date().toLocaleDateString("en-IN")}\nBalance: ₹${remaining}\n\nThank you! 🙏`);
       window.open(`https://wa.me/91${vendor.phone}?text=${msg}`, "_blank");
     }
 
