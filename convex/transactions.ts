@@ -53,6 +53,20 @@ export const createTransaction = mutation({
     }))),
   },
   handler: async (ctx, args) => {
+    let invoiceNo: number | undefined;
+
+    if (args.type === "bill") {
+      const existingBills = await ctx.db
+        .query("transactions")
+        .withIndex("by_vendor_type", (q) => q.eq("vendorId", args.vendorId).eq("type", "bill"))
+        .collect();
+      const maxInvoiceNo = existingBills.reduce(
+        (max, b) => (b.invoiceNo && b.invoiceNo > max ? b.invoiceNo : max),
+        0,
+      );
+      invoiceNo = maxInvoiceNo + 1;
+    }
+
     const txId = await ctx.db.insert("transactions", {
       type: args.type,
       vendorId: args.vendorId,
@@ -60,6 +74,7 @@ export const createTransaction = mutation({
       amount: args.amount,
       profit: args.profit ?? 0,
       date: args.date,
+      invoiceNo,
       notes: args.notes,
       paymentMethod: args.paymentMethod,
       items: args.items,
@@ -76,6 +91,32 @@ export const createTransaction = mutation({
     }
 
     return txId;
+  },
+});
+
+export const backfillInvoiceNumbers = mutation({
+  handler: async (ctx) => {
+    const vendors = await ctx.db.query("vendors").collect();
+    let updated = 0;
+
+    for (const vendor of vendors) {
+      const bills = await ctx.db
+        .query("transactions")
+        .withIndex("by_vendor_type", (q) => q.eq("vendorId", vendor._id).eq("type", "bill"))
+        .order("asc")
+        .collect();
+
+      let seq = 0;
+      for (const bill of bills) {
+        if (!bill.invoiceNo) {
+          seq++;
+          await ctx.db.patch(bill._id, { invoiceNo: seq });
+          updated++;
+        }
+      }
+    }
+
+    return { updated };
   },
 });
 

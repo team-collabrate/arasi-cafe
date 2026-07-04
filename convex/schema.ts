@@ -23,6 +23,7 @@ export default defineSchema({
     amount: v.number(),
     profit: v.number(),
     date: v.string(),
+    invoiceNo: v.optional(v.number()),
     notes: v.optional(v.string()),
     imageUrl: v.optional(v.string()),
     paymentMethod: v.optional(v.string()),
@@ -39,7 +40,8 @@ export default defineSchema({
     }))),
   })
     .index("by_vendor", ["vendorId"])
-    .index("by_date", ["date"]),
+    .index("by_date", ["date"])
+    .index("by_vendor_type", ["vendorId", "type"]),
 
   products: defineTable({
     name: v.string(),

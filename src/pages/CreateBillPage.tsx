@@ -1,8 +1,9 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, Search, Plus, X, ChevronDown, Receipt, Camera } from "lucide-react";
 import QuantityCounter from "../app/components/QuantityCounter";
+import { Switch } from "../app/components/ui/switch";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { formatCurrency } from "../lib/utils";
@@ -21,9 +22,10 @@ type BillItem = {
   sgst: number;
 };
 
-function calcLineTotal(item: BillItem): number {
+function calcLineTotal(item: BillItem, round = false): number {
   const sub = item.qty * item.price;
-  return sub + sub * ((item.cgst + item.sgst) / 100);
+  const total = sub + sub * ((item.cgst + item.sgst) / 100);
+  return round ? (total < 0.01 ? 0 : Math.ceil(total)) : total;
 }
 
 export default function CreateBillPage() {
@@ -41,6 +43,7 @@ export default function CreateBillPage() {
   const [showProducts, setShowProducts] = useState(false);
   const [items, setItems] = useState<BillItem[]>([]);
   const [notes, setNotes] = useState("");
+  const [roundPrices, setRoundPrices] = useState(false);
 
   const selectedVendor = useMemo(() => vendors.find((v) => v._id === customerId), [vendors, customerId]);
 
@@ -54,7 +57,7 @@ export default function CreateBillPage() {
     [products, productSearch]
   );
 
-  const grandTotal = useMemo(() => items.reduce((s, item) => s + calcLineTotal(item), 0), [items]);
+  const grandTotal = useMemo(() => items.reduce((s, item) => s + calcLineTotal(item, roundPrices), 0), [items, roundPrices]);
   const totalTax = useMemo(() => items.reduce((s, item) => {
     const sub = item.qty * item.price;
     return s + sub * ((item.cgst + item.sgst) / 100);
@@ -103,8 +106,8 @@ export default function CreateBillPage() {
       type: "bill",
       vendorId: customerId as Id<"vendors">,
       vendorName: selectedVendor!.name,
-      amount: Math.round(grandTotal),
-      profit: Math.round(profit),
+      amount: roundPrices ? (grandTotal < 0.01 ? 0 : Math.ceil(grandTotal)) : grandTotal,
+      profit: roundPrices ? Math.ceil(profit) : profit,
       date: new Date().toISOString(),
       notes: notes.trim() || undefined,
       items: items.map((item) => ({
@@ -203,7 +206,13 @@ export default function CreateBillPage() {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-semibold uppercase tracking-wider text-[#6B4C4F]">Items *</p>
+            <div className="flex items-center gap-3">
+              <p className="text-xs font-semibold uppercase tracking-wider text-[#6B4C4F]">Items *</p>
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <Switch checked={roundPrices} onCheckedChange={setRoundPrices} className="scale-75" />
+                <span className="text-[10px] text-[#6B4C4F] font-medium">Round</span>
+              </label>
+            </div>
             <motion.button
               whileTap={{ scale: 0.93 }}
               onClick={() => setShowProducts(true)}
@@ -302,7 +311,7 @@ export default function CreateBillPage() {
                       />
                     </div>
                     <div className="text-right">
-                      <p className="text-sm font-bold text-[#8B1E24]">{formatCurrency(calcLineTotal(item))}</p>
+                      <p className="text-sm font-bold text-[#8B1E24]">{formatCurrency(calcLineTotal(item, roundPrices))}</p>
                     </div>
                   </div>
                 </motion.div>

@@ -4,7 +4,7 @@ import { ArrowLeft, Download, Share2 } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import html2pdf from "html2pdf.js";
-import { Share as CapShare } from "@capacitor/share";
+import { Share } from "@capacitor/share";
 import { Filesystem, Directory } from "@capacitor/filesystem";
 import "./receipt.css";
 
@@ -18,7 +18,7 @@ function formatDate(dateString: string): string {
     .replace(/\//g, "-");
 }
 
-function generateInvoiceNumber(date: string, index: number, vendorName?: string): string {
+function formatInvoiceNumber(date: string, seq: number, vendorName?: string): string {
   const d = new Date(date);
   const y = String(d.getFullYear()).slice(-2);
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -26,7 +26,7 @@ function generateInvoiceNumber(date: string, index: number, vendorName?: string)
   const prefix = vendorName
     ? vendorName.split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 4)
     : "XX";
-  return `${prefix}/${y}${m}${day}/${String(index).padStart(3, "0")}`;
+  return `${prefix}/${y}${m}${day}/${String(seq).padStart(3, "0")}`;
 }
 
 export default function ReceiptPreviewPage() {
@@ -40,6 +40,8 @@ export default function ReceiptPreviewPage() {
   const vendor = useMemo(() => (tx ? vendors.find((v) => v._id === tx.vendorId) : null), [vendors, tx]);
 
   const isPayment = tx?.type === "payment";
+
+  const isNative = window.Capacitor?.getPlatform?.() !== "web" && window.Capacitor?.getPlatform?.() !== undefined;
 
   const subtotal = useMemo(() => {
     if (!tx?.items) return 0;
@@ -58,24 +60,9 @@ export default function ReceiptPreviewPage() {
 
   const grandTotal = subtotal + totalCGST + totalSGST;
 
-  const downloadPDF = useCallback(() => {
+  const generatePdfBlob = useCallback(async () => {
     const el = invoiceRef.current;
-    if (!el || !tx) return;
-    html2pdf()
-      .set({
-        margin: 0,
-        filename: `bill-${tx._id?.slice(-6) || "invoice"}.pdf`,
-        image: { type: "jpeg", quality: 0.98 },
-        html2canvas: { scale: 3, useCORS: true, logging: false },
-        jsPDF: { unit: "mm", format: [210, 297], orientation: "portrait" },
-      })
-      .from(el)
-      .save();
-  }, [tx]);
-
-  const handleShare = useCallback(async () => {
-    const el = invoiceRef.current;
-    if (!el || !tx) return;
+    if (!el || !tx) return null;
     try {
       const pdf = await html2pdf()
         .set({
@@ -88,7 +75,49 @@ export default function ReceiptPreviewPage() {
         .from(el)
         .toPdf()
         .get("pdf");
-      const blob = pdf.output("blob");
+      return pdf.output("blob");
+    } catch (e) {
+      console.error("PDF generation failed:", e);
+      return null;
+    }
+  }, [tx]);
+
+  const downloadPDF = useCallback(async () => {
+    const blob = await generatePdfBlob();
+    if (!blob) return;
+
+    if (isNative) {
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      const saved = await Filesystem.writeFile({
+        path: `bill-${tx?._id?.slice(-6) || "invoice"}.pdf`,
+        data: base64,
+        directory: Directory.Cache,
+      });
+      await Share.share({
+        title: "Bill",
+        text: `Bill for ${tx?.vendorName}`,
+        files: [saved.uri],
+      });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `bill-${tx?._id?.slice(-6) || "invoice"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }, [tx, generatePdfBlob]);
+
+  const handleShare = useCallback(async () => {
+    const blob = await generatePdfBlob();
+    if (!blob || !tx) return;
+    try {
       const base64 = await new Promise<string>((resolve) => {
         const reader = new FileReader();
         reader.onloadend = () => resolve(reader.result as string);
@@ -104,10 +133,10 @@ export default function ReceiptPreviewPage() {
         text: `Bill from Arasi for ${tx.vendorName}`,
         files: [saved.uri],
       });
-    } catch {
-      // silently fail
+    } catch (e) {
+      console.error("Share failed:", e);
     }
-  }, [tx, downloadPDF]);
+  }, [tx, generatePdfBlob]);
 
   if (!tx) {
     return (
@@ -120,7 +149,9 @@ export default function ReceiptPreviewPage() {
     );
   }
 
-  const invoiceNo = generateInvoiceNumber(tx.date, tx._id.length, tx.vendorName);
+  const invoiceNo = tx.invoiceNo
+    ? formatInvoiceNumber(tx.date, tx.invoiceNo, tx.vendorName)
+    : "—";
 
   return (
     <div>
@@ -140,12 +171,14 @@ export default function ReceiptPreviewPage() {
             >
               <Share2 size={16} className="text-white" />
             </button>
-            <button
-              onClick={downloadPDF}
-              className="w-9 h-9 rounded-xl bg-[#8B1E24] flex items-center justify-center"
-            >
-              <Download size={16} className="text-white" />
-            </button>
+            {!isNative && (
+              <button
+                onClick={downloadPDF}
+                className="w-9 h-9 rounded-xl bg-[#8B1E24] flex items-center justify-center"
+              >
+                <Download size={16} className="text-white" />
+              </button>
+            )}
           </div>
         </div>
       </div>

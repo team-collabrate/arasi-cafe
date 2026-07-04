@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "release": "vite build && cap sync android && cd android && ./gradlew assembleRelease",
+    "install": "adb install -r android/app/build/outputs/apk/release/app-release.apk",
+    "release:install": "pnpm release && pnpm install"
   },
   "dependencies": {
     "@capacitor/android": "^8.4.1",
