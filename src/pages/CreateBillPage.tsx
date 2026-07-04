@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, Search, Plus, X, ChevronDown, Receipt, Camera } from "lucide-react";
@@ -7,9 +7,6 @@ import { Switch } from "../app/components/ui/switch";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { formatCurrency } from "../lib/utils";
-import { Share } from "@capacitor/share";
-import { Filesystem, Directory } from "@capacitor/filesystem";
-import html2pdf from "html2pdf.js";
 import { toast } from "sonner";
 import type { Doc, Id } from "../convex/_generated/dataModel";
 
@@ -46,9 +43,6 @@ export default function CreateBillPage() {
   const [items, setItems] = useState<BillItem[]>([]);
   const [notes, setNotes] = useState("");
   const [roundPrices, setRoundPrices] = useState(false);
-
-  const isNative = window.Capacitor?.getPlatform?.() !== "web" && window.Capacitor?.getPlatform?.() !== undefined;
-  const invoiceRef = useRef<HTMLDivElement>(null);
 
   const selectedVendor = useMemo(() => vendors.find((v) => v._id === customerId), [vendors, customerId]);
 
@@ -102,47 +96,12 @@ export default function CreateBillPage() {
     setItems((prev) => prev.filter((_, i) => i !== idx));
   };
 
-  const generatePdfBlob = useCallback(async () => {
-    const el = invoiceRef.current;
-    if (!el) return null;
-
-    el.style.position = "fixed";
-    el.style.left = "0";
-    el.style.top = "0";
-    el.style.opacity = "1";
-    el.style.zIndex = "9999";
-    el.style.pointerEvents = "none";
-    el.style.background = "#fff";
-
-    await new Promise((r) => requestAnimationFrame(r));
-
-    try {
-      const pdf = await html2pdf()
-        .set({
-          margin: 0,
-          filename: `bill.pdf`,
-          image: { type: "jpeg", quality: 0.98 },
-          html2canvas: { scale: 3, useCORS: true, logging: false },
-          jsPDF: { unit: "mm", format: [210, 297], orientation: "portrait" },
-        })
-        .from(el)
-        .toPdf()
-        .get("pdf");
-      return pdf.output("blob") as Blob;
-    } catch {
-      return null;
-    } finally {
-      el.style.opacity = "0";
-      el.style.zIndex = "-9999";
-    }
-  }, []);
-
   const handleSave = async (withWhatsApp = false) => {
     if (!customerId) { toast.error("Please select a customer"); return; }
     if (items.length === 0) { toast.error("Add at least one product"); return; }
 
     const profit = items.reduce((s, item) => s + (item.price - item.cost) * item.qty, 0);
-    await createTransaction({
+    const txId = await createTransaction({
       type: "bill",
       vendorId: customerId as Id<"vendors">,
       vendorName: selectedVendor!.name,
@@ -165,105 +124,14 @@ export default function CreateBillPage() {
     toast.success("Bill created!");
 
     if (withWhatsApp && selectedVendor) {
-      const blob = await generatePdfBlob();
-      if (!blob) { toast.error("Failed to generate PDF"); navigate("/bills"); return; }
-
-      if (isNative) {
-        try {
-          const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result as string);
-            reader.readAsDataURL(blob);
-          });
-          const saved = await Filesystem.writeFile({
-            path: `bill-${Date.now()}.pdf`,
-            data: base64,
-            directory: Directory.Cache,
-          });
-          await Share.share({
-            title: "Bill",
-            text: `Bill from Arasi for ${selectedVendor.name}`,
-            files: [saved.uri],
-          });
-        } catch (e) {
-          toast.error("Share failed");
-        }
-      } else {
-        const file = new File([blob], `bill-${Date.now()}.pdf`, { type: "application/pdf" });
-        if (navigator.canShare?.({ files: [file] })) {
-          try {
-            await navigator.share({ files: [file], title: "Bill", text: `Bill from Arasi for ${selectedVendor.name}` });
-          } catch (e) {
-            if (e instanceof Error && e.name !== "AbortError") {
-              toast.error("Share failed");
-            }
-          }
-        } else {
-          toast.info("Sharing not supported on this browser");
-        }
-      }
+      navigate(`/receipts/${txId}?share=1`);
+    } else {
+      navigate("/bills");
     }
-    navigate("/bills");
   };
 
-  const today = new Date().toLocaleDateString("en-IN").replace(/\//g, "-");
-
   return (
-    <>
-      <div ref={invoiceRef} className="fixed left-0 top-0 w-[210mm] p-[10mm] text-sm font-sans leading-relaxed" style={{ zIndex: -9999, opacity: 0, pointerEvents: "none", fontFamily: "system-ui, -apple-system, sans-serif" }}>
-        <div style={{ textAlign: "center", marginBottom: 8 }}>
-          <h1 style={{ fontSize: 28, fontWeight: 700, margin: 0 }}>அரசி</h1>
-          <h2 style={{ fontSize: 18, fontWeight: 600, margin: 0 }}>Milk Agency</h2>
-          <p style={{ fontSize: 11, color: "#555", margin: "2px 0" }}>New Bus Stand, Opp. Aruppukottai</p>
-          <p style={{ fontSize: 11, color: "#555", margin: 0 }}>Mobile: +91 95245 58005</p>
-        </div>
-        <hr style={{ border: "none", borderTop: "1px solid #000", margin: "6px 0" }} />
-        <div style={{ display: "flex", justifyContent: "space-between", marginTop: 6 }}>
-          <div>
-            <p style={{ margin: 0, fontSize: 12 }}><b>Date:</b> {today}</p>
-          </div>
-          <div style={{ textAlign: "right" }}>
-            <p style={{ margin: 0, fontSize: 10 }}><b>A/C No:</b> 43520985452</p>
-            <p style={{ margin: 0, fontSize: 10 }}><b>IFSC:</b> SBIN0061171</p>
-            <p style={{ margin: 0, fontSize: 10 }}>State Bank of India - Aruppukottai</p>
-          </div>
-        </div>
-        <div style={{ marginTop: 10 }}>
-          <p style={{ margin: 0, fontWeight: 600, fontSize: 13 }}>Bill To</p>
-          <p style={{ margin: 0, fontSize: 12 }}>{selectedVendor?.name}</p>
-          {selectedVendor?.phone && <p style={{ margin: 0, fontSize: 12 }}>Phone: {selectedVendor.phone}</p>}
-        </div>
-        <table style={{ width: "100%", borderCollapse: "collapse", marginTop: 8, fontSize: 11 }}>
-          <thead>
-            <tr style={{ background: "#f0f0f0" }}>
-              <th style={{ padding: "4px 6px", textAlign: "left", border: "1px solid #ccc" }}>S.No</th>
-              <th style={{ padding: "4px 6px", textAlign: "left", border: "1px solid #ccc" }}>Product</th>
-              <th style={{ padding: "4px 6px", textAlign: "center", border: "1px solid #ccc" }}>Qty</th>
-              <th style={{ padding: "4px 6px", textAlign: "right", border: "1px solid #ccc" }}>Rate</th>
-              <th style={{ padding: "4px 6px", textAlign: "right", border: "1px solid #ccc" }}>Amount</th>
-            </tr>
-          </thead>
-          <tbody>
-            {items.map((item, i) => (
-              <tr key={i}>
-                <td style={{ padding: "4px 6px", border: "1px solid #ccc" }}>{i + 1}</td>
-                <td style={{ padding: "4px 6px", border: "1px solid #ccc" }}>{item.name}</td>
-                <td style={{ padding: "4px 6px", border: "1px solid #ccc", textAlign: "center" }}>{item.qty} {item.uom || ""}</td>
-                <td style={{ padding: "4px 6px", border: "1px solid #ccc", textAlign: "right" }}>₹{item.price.toFixed(2)}</td>
-                <td style={{ padding: "4px 6px", border: "1px solid #ccc", textAlign: "right" }}>₹{(item.qty * item.price).toFixed(2)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        <div style={{ marginTop: 6 }}>
-          <p style={{ margin: 0, fontSize: 12, textAlign: "right" }}>Subtotal: ₹{subtotal.toFixed(2)}</p>
-          {totalTax > 0 && <p style={{ margin: 0, fontSize: 12, textAlign: "right" }}>Tax (GST): ₹{totalTax.toFixed(2)}</p>}
-          <p style={{ margin: 0, fontSize: 14, fontWeight: 700, textAlign: "right" }}>Grand Total: ₹{grandTotal.toFixed(2)}</p>
-        </div>
-        {notes && <p style={{ margin: "6px 0 0", fontSize: 11, fontStyle: "italic" }}>Notes: {notes}</p>}
-        <div style={{ marginTop: 10, textAlign: "center", fontSize: 11 }}>Thank you for your business!</div>
-      </div>
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="pb-48">
+    <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="pb-48">
       <div className="px-5 pt-12 pb-4 bg-white sticky top-0 z-10 border-b border-[#EDE0DB]">
         <div className="flex items-center gap-3 mb-1">
           <button onClick={() => navigate(-1)} className="w-9 h-9 rounded-xl bg-white border border-[#EDE0DB] flex items-center justify-center shadow-sm">
@@ -506,6 +374,5 @@ export default function CreateBillPage() {
         </motion.div>
       )}
     </motion.div>
-    </>
   );
 }

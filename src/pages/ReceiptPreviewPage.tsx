@@ -1,5 +1,5 @@
-import { useMemo, useCallback, useRef } from "react";
-import { useParams, useNavigate } from "react-router";
+import { useEffect, useMemo, useCallback, useRef } from "react";
+import { useParams, useNavigate, useSearchParams } from "react-router";
 import { ArrowLeft, Download, Share2 } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "../../convex/_generated/api";
@@ -33,7 +33,9 @@ function formatInvoiceNumber(date: string, seq: number, vendorName?: string): st
 export default function ReceiptPreviewPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const invoiceRef = useRef<HTMLDivElement>(null);
+  const sharedRef = useRef(false);
   const transactions = useQuery(api.transactions.getTransactions) ?? [];
   const vendors = useQuery(api.vendors.getVendors) ?? [];
 
@@ -154,6 +156,13 @@ export default function ReceiptPreviewPage() {
       }
     }
   }, [tx, generatePdfBlob]);
+
+  useEffect(() => {
+    if (tx && searchParams.get("share") === "1" && !sharedRef.current) {
+      sharedRef.current = true;
+      handleShare();
+    }
+  }, [tx, searchParams, handleShare]);
 
   if (!tx) {
     return (
