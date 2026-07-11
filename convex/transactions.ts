@@ -120,6 +120,43 @@ export const backfillInvoiceNumbers = mutation({
   },
 });
 
+export const updateTransaction = mutation({
+  args: {
+    id: v.id("transactions"),
+    date: v.optional(v.string()),
+    notes: v.optional(v.string()),
+    amount: v.optional(v.number()),
+    profit: v.optional(v.number()),
+    items: v.optional(v.array(v.object({
+      productId: v.optional(v.id("products")),
+      cost: v.optional(v.number()),
+      name: v.string(),
+      qty: v.number(),
+      price: v.number(),
+      uom: v.optional(v.string()),
+      cgst: v.number(),
+      sgst: v.number(),
+      profit: v.number(),
+    }))),
+  },
+  handler: async (ctx, args) => {
+    const { id, ...updates } = args;
+    const tx = await ctx.db.get(id);
+    if (!tx) throw new Error("Transaction not found");
+
+    await ctx.db.patch(id, updates);
+
+    const vendor = await ctx.db.get(tx.vendorId);
+    if (vendor && updates.date) {
+      await ctx.db.patch(tx.vendorId, {
+        lastTransaction: updates.date,
+      });
+    }
+
+    return id;
+  },
+});
+
 export const deleteTransaction = mutation({
   args: { id: v.id("transactions") },
   handler: async (ctx, args) => {

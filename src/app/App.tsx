@@ -143,6 +143,7 @@ function AppShell() {
 
               <Route path="/bills" element={<BillHistoryPage />} />
               <Route path="/bills/new" element={<CreateBillPage />} />
+              <Route path="/bills/:id/edit" element={<CreateBillPage />} />
               <Route path="/bills/:id" element={<BillDetailPage />} />
 
               <Route path="/payments" element={<PaymentHistoryPage />} />

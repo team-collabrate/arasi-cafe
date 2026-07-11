@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { useParams, useNavigate } from "react-router";
 import { motion } from "motion/react";
-import { ArrowLeft, CreditCard, Share2, Printer, Trash2, User, Calendar, FileText } from "lucide-react";
+import { ArrowLeft, CreditCard, Share2, Printer, Trash2, Edit3, User, Calendar, FileText } from "lucide-react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "../../convex/_generated/api";
 import { formatCurrency, formatDate } from "../lib/utils";
@@ -55,9 +55,14 @@ export default function BillDetailPage() {
             <ArrowLeft size={18} className="text-[#1A0A0C]" />
           </button>
           <h1 className="text-base font-bold text-[#1A0A0C]">Bill Details</h1>
-          <button onClick={handleDelete} className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center">
-            <Trash2 size={16} className="text-red-500" />
-          </button>
+          <div className="flex gap-2">
+            <button onClick={() => navigate(`/bills/${id}/edit`)} className="w-9 h-9 rounded-xl bg-[#FFF8F4] border border-[#EDE0DB] flex items-center justify-center">
+              <Edit3 size={16} className="text-[#6B4C4F]" />
+            </button>
+            <button onClick={handleDelete} className="w-9 h-9 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center">
+              <Trash2 size={16} className="text-red-500" />
+            </button>
+          </div>
         </div>
       </div>
 

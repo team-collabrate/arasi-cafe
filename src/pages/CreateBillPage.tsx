@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { useState, useMemo, useEffect } from "react";
+import { useNavigate, useParams, useSearchParams } from "react-router";
 import { motion, AnimatePresence } from "motion/react";
 import { ArrowLeft, Search, Plus, X, ChevronDown, Receipt, Camera, CalendarDays } from "lucide-react";
 import QuantityCounter from "../app/components/QuantityCounter";
@@ -29,13 +29,19 @@ function calcLineTotal(item: BillItem, round = false): number {
 
 export default function CreateBillPage() {
   const navigate = useNavigate();
+  const { id } = useParams<{ id: string }>();
   const [searchParams] = useSearchParams();
+  const isEdit = Boolean(id);
   const vendors = useQuery(api.vendors.getVendors) ?? [];
   const products = useQuery(api.products.getProducts) ?? [];
+  const transactions = useQuery(api.transactions.getTransactions) ?? [];
   const createTransaction = useMutation(api.transactions.createTransaction);
+  const updateTransaction = useMutation(api.transactions.updateTransaction);
+
+  const existingTx = useMemo(() => isEdit ? transactions.find((t) => t._id === id) : null, [transactions, id, isEdit]);
 
   const preselectedId = searchParams.get("customerId") || "";
-  const [customerId, setCustomerId] = useState(preselectedId);
+  const [customerId, setCustomerId] = useState(existingTx?.vendorId || preselectedId);
   const [customerSearch, setCustomerSearch] = useState("");
   const [showCustomers, setShowCustomers] = useState(!preselectedId);
   const [productSearch, setProductSearch] = useState("");
@@ -44,6 +50,23 @@ export default function CreateBillPage() {
   const [notes, setNotes] = useState("");
   const [roundPrices, setRoundPrices] = useState(false);
   const [billDate, setBillDate] = useState(new Date().toISOString().split("T")[0]);
+
+  useEffect(() => {
+    if (!existingTx) return;
+    setCustomerId(existingTx.vendorId);
+    setBillDate(existingTx.date.split("T")[0]);
+    setNotes(existingTx.notes || "");
+    setItems((existingTx.items || []).map((i) => ({
+      productId: i.productId!,
+      name: i.name,
+      qty: i.qty,
+      price: i.price,
+      cost: i.cost ?? 0,
+      uom: i.uom,
+      cgst: i.cgst,
+      sgst: i.sgst,
+    })));
+  }, [existingTx]);
 
   const selectedVendor = useMemo(() => vendors.find((v) => v._id === customerId), [vendors, customerId]);
 
@@ -102,32 +125,49 @@ export default function CreateBillPage() {
     if (items.length === 0) { toast.error("Add at least one product"); return; }
 
     const profit = items.reduce((s, item) => s + (item.price - item.cost) * item.qty, 0);
-    const txId = await createTransaction({
-      type: "bill",
-      vendorId: customerId as Id<"vendors">,
-      vendorName: selectedVendor!.name,
-      amount: roundPrices ? (grandTotal < 0.01 ? 0 : Math.ceil(grandTotal)) : grandTotal,
-      profit: roundPrices ? Math.ceil(profit) : profit,
-      date: new Date(billDate + "T00:00:00").toISOString(),
-      notes: notes.trim() || undefined,
-      items: items.map((item) => ({
-        productId: item.productId,
-        name: item.name,
-        qty: item.qty,
-        price: item.price,
-        cost: item.cost,
-        uom: item.uom,
-        cgst: item.cgst,
-        sgst: item.sgst,
-        profit: (item.price - item.cost) * item.qty,
-      })),
-    });
-    toast.success("Bill created!");
+    const amount = roundPrices ? (grandTotal < 0.01 ? 0 : Math.ceil(grandTotal)) : grandTotal;
+    const date = new Date(billDate + "T00:00:00").toISOString();
+    const itemsData = items.map((item) => ({
+      productId: item.productId,
+      name: item.name,
+      qty: item.qty,
+      price: item.price,
+      cost: item.cost,
+      uom: item.uom,
+      cgst: item.cgst,
+      sgst: item.sgst,
+      profit: (item.price - item.cost) * item.qty,
+    }));
 
-    if (withWhatsApp && selectedVendor) {
-      navigate(`/receipts/${txId}?share=1`);
+    if (isEdit && id) {
+      await updateTransaction({
+        id: id as Id<"transactions">,
+        amount,
+        profit: roundPrices ? Math.ceil(profit) : profit,
+        date,
+        notes: notes.trim() || undefined,
+        items: itemsData,
+      });
+      toast.success("Bill updated!");
+      navigate(`/bills/${id}`);
     } else {
-      navigate("/bills");
+      const txId = await createTransaction({
+        type: "bill",
+        vendorId: customerId as Id<"vendors">,
+        vendorName: selectedVendor!.name,
+        amount,
+        profit: roundPrices ? Math.ceil(profit) : profit,
+        date,
+        notes: notes.trim() || undefined,
+        items: itemsData,
+      });
+      toast.success("Bill created!");
+
+      if (withWhatsApp && selectedVendor) {
+        navigate(`/receipts/${txId}?share=1`);
+      } else {
+        navigate("/bills");
+      }
     }
   };
 
@@ -139,7 +179,7 @@ export default function CreateBillPage() {
             <ArrowLeft size={18} className="text-[#1A0A0C]" />
           </button>
           <div>
-            <h1 className="text-xl font-bold text-[#1A0A0C]">Create Bill</h1>
+            <h1 className="text-xl font-bold text-[#1A0A0C]">{isEdit ? "Edit Bill" : "Create Bill"}</h1>
             <p className="text-xs text-[#6B4C4F]">{items.length} items · {formatCurrency(grandTotal)}</p>
           </div>
         </div>
@@ -149,10 +189,7 @@ export default function CreateBillPage() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-[#6B4C4F] mb-2">Customer *</p>
           {selectedVendor ? (
-            <button
-              onClick={() => { setShowCustomers(true); setCustomerId(""); }}
-              className="w-full flex items-center gap-3 bg-[#FFF8F4] border border-[#8B1E24]/20 rounded-xl px-4 py-3"
-            >
+            <div className="w-full flex items-center gap-3 bg-[#FFF8F4] border border-[#8B1E24]/20 rounded-xl px-4 py-3">
               <div className="w-9 h-9 rounded-lg bg-[#8B1E24]/10 flex items-center justify-center font-bold text-[#8B1E24] text-sm">
                 {selectedVendor.avatar}
               </div>
@@ -160,8 +197,8 @@ export default function CreateBillPage() {
                 <p className="text-sm font-semibold text-[#1A0A0C]">{selectedVendor.name}</p>
                 <p className="text-xs text-[#6B4C4F]">{selectedVendor.phone}</p>
               </div>
-              <ChevronDown size={16} className="text-[#6B4C4F]" />
-            </button>
+              {!isEdit && <ChevronDown size={16} className="text-[#6B4C4F]" />}
+            </div>
           ) : (
             <div>
               <div className="flex items-center gap-2 bg-[#F9F6F2] rounded-xl px-3.5 py-2.5 border border-[#EDE0DB]">
@@ -374,15 +411,17 @@ export default function CreateBillPage() {
                 onClick={() => handleSave(false)}
                 className="flex-1 bg-[#8B1E24] text-white rounded-xl py-3.5 text-sm font-bold shadow-sm"
               >
-                Save Bill
+                {isEdit ? "Update Bill" : "Save Bill"}
               </motion.button>
-              <motion.button
-                whileTap={{ scale: 0.97 }}
-                onClick={() => handleSave(true)}
-                className="flex-1 bg-[#16A34A] text-white rounded-xl py-3.5 text-sm font-bold shadow-sm"
-              >
-                Save & WhatsApp
-              </motion.button>
+              {!isEdit && (
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleSave(true)}
+                  className="flex-1 bg-[#16A34A] text-white rounded-xl py-3.5 text-sm font-bold shadow-sm"
+                >
+                  Save & WhatsApp
+                </motion.button>
+              )}
             </div>
           </div>
         </motion.div>
