@@ -2,7 +2,10 @@ import { Document, Page, View, Text, Image, Font, StyleSheet } from "@react-pdf/
 
 Font.register({
   family: "NotoSansTamil",
-  src: "/NotoSansTamil-Regular.ttf",
+  fonts: [
+    { src: "/NotoSansTamil-Regular.ttf", fontWeight: 400, fontStyle: "normal" },
+    { src: "/NotoSansTamil-Regular.ttf", fontWeight: 400, fontStyle: "italic" },
+  ],
 });
 
 Font.registerHyphenationCallback(() => []);
